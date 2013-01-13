@@ -14,6 +14,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
+
   <dependencies>
     <dependency>
       <groupId>junit</groupId>
@@ -25,26 +26,32 @@
     <dependency>
       <groupId>org.neo4j</groupId>
       <artifactId>neo4j</artifactId>
-      <version>1.8.1</version>
+      <version>1.8</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-advanced</artifactId>
+      <version>1.8</version>
     </dependency>
 
     <dependency>
       <groupId>org.neo4j.app</groupId>
       <artifactId>neo4j-server</artifactId>
-      <version>1.8.1</version>
+      <version>1.8</version>
     </dependency>
 
     <dependency>
       <groupId>org.neo4j</groupId>
       <artifactId>neo4j-kernel</artifactId>
-      <version>1.8.1</version>
+      <version>1.8</version>
     </dependency>
 
     <dependency>
       <groupId>org.neo4j.app</groupId>
       <artifactId>neo4j-server</artifactId>
       <classifier>static-web</classifier>
-      <version>1.8.1</version>
+      <version>1.8</version>
     </dependency>
 
   </dependencies>
@@ -62,6 +69,7 @@
               <manifest>
                 <addClasspath>true</addClasspath>
                 <mainClass>genanalytics.WordCloudGen</mainClass>
+                <classpathPrefix>dependency/</classpathPrefix>
               </manifest>
             </archive>
           </configuration>
