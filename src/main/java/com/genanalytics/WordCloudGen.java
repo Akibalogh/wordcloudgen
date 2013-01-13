@@ -3,7 +3,6 @@ package genanalytics;
 import java.io.BufferedInputStream;
 import java.io.PrintStream;
 
-import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
@@ -16,30 +15,28 @@ import org.neo4j.server.WrappingNeoServerBootstrapper;
 
 public class WordCloudGen 
 {
-	private static final String DB_PATH = "/usr/share/neo4j-community-1.8.1/data/articles-categories.db";
-	private static GraphDatabaseService graphDb = new EmbeddedGraphDatabase(DB_PATH);
-	
-	// private static WrappingNeoServerBootstrapper srv
-	// srv = new WrappingNeoServerBootstrapper(graphDb);
-	// srv.start();
+	private static GraphDatabaseService graphDb;	
 
+	public GraphDatabaseService getGraphDb() { return graphDb; }
+
+	public void setGraphDb(GraphDatabaseService graphDb) { this.graphDb = graphDb; }
+
+	public Node returnNode(Long id) { return getGraphDb().getNodeById(id); }
+	
+	
 	public static void main( String[] args )
     	{
+		String DB_PATH = "/usr/share/neo4j-community-1.8.1/data/articles-categories.db";
+		GraphDatabaseFactory neoFactory = new GraphDatabaseFactory();
+		
+		WordCloudGen w = new WordCloudGen();
+		
+		w.setGraphDb(neoFactory.newEmbeddedDatabase(DB_PATH));
 		registerShutdownHook();
 
-		Transaction tx = graphDb.beginTx();
-		try
-		{
-			Node n = graphDb.getNodeById(3);
-
-			System.out.println(n.getId());
-	
-			tx.success();
-		}
-		finally
-		{
-			tx.finish();
-		}
+		Long id = 3L;
+		Node a = w.returnNode(id);
+		System.out.println(a.getId());
 	}
 
 	private static void registerShutdownHook()
@@ -49,7 +46,6 @@ public class WordCloudGen
 			@Override
 			public void run()
 			{
-				// srv.stop();
 				graphDb.shutdown();
 			}
 		} );
