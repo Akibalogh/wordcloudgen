@@ -34,9 +34,13 @@ public class WordCloudGen
 		w.setGraphDb(neoFactory.newEmbeddedDatabase(DB_PATH));
 		registerShutdownHook();
 
-		Long id = 3L;
-		Node a = w.returnNode(id);
-		System.out.println(a.getId());
+		for (long id = 1L; id < 100L; id++)
+		{
+			Node a = w.returnNode(id);
+
+			String property = "value";
+			System.out.println(a.getProperty(property));
+		}
 	}
 
 	private static void registerShutdownHook()
