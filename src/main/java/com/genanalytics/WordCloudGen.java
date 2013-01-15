@@ -13,6 +13,7 @@ import org.neo4j.kernel.EmbeddedGraphDatabase;
 
 import org.neo4j.server.WrappingNeoServerBootstrapper;
 
+
 public class WordCloudGen 
 {
 	private static GraphDatabaseService graphDb;	
@@ -30,17 +31,29 @@ public class WordCloudGen
 		GraphDatabaseFactory neoFactory = new GraphDatabaseFactory();
 		
 		WordCloudGen w = new WordCloudGen();
-		
 		w.setGraphDb(neoFactory.newEmbeddedDatabase(DB_PATH));
+		
 		registerShutdownHook();
 
-		for (long id = 1L; id < 100L; id++)
-		{
-			Node a = w.returnNode(id);
+		String property = "value";
 
-			String property = "value";
-			System.out.println(a.getProperty(property));
-		}
+		Iterable<Node> result = w.getGraphDb().getAllNodes();
+
+		// Find out the size of the list
+		int listsize = 0;
+		
+		for (Node row : result)
+		{ listsize++; }
+
+		System.out.println(listsize);
+
+
+		// WORK IN PROGRESS: For each node in the graph, add it to the index
+		for (Node row : result)
+		{ /* System.out.println(row.getId() + " " + row.getProperty(property)); */ }
+
+		// When the index is queried, return results in the category
+
 	}
 
 	private static void registerShutdownHook()
