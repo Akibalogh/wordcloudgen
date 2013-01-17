@@ -41,7 +41,7 @@ public class WordCloudGen
 	
 	public static void main( String[] args )
     	{ 
-		final String DB_PATH = "/usr/share/neo4j-community-1.8.1/data/articles-categories.db";
+		final String DB_PATH = "/usr/share/neo4j-community-1.8.1/data/articles-shortened.db";
 		final String PREFIX = "U http://dbpedia.org/resource/";
 		String property = "value";
 		String input = null;
@@ -50,12 +50,17 @@ public class WordCloudGen
 		// When the index is queried, return results
 		Console console = System.console();
 	
-		while (input != "")
+		do
 		{
 			input = console.readLine("> ");
-			System.out.println("I read: '" + PREFIX + input + "'");	
-			// checkIndex(w.getIndex(), property, input);	
+		
+			if (!input.isEmpty())
+			{
+				System.out.println("I read: '" + PREFIX + input + "'");	
+			 	checkIndex(w.getIndex(), property, PREFIX + input);
+			}	
 		}
+		while (!input.isEmpty());
 		System.out.println("Bye!");	
 	
 		//catch(IOException error)
@@ -112,6 +117,7 @@ public class WordCloudGen
 				if (row.hasProperty(property))
 				{ w.getIndex().add(row, property, row.getProperty(property)); }
 
+				// Show a progress update every 200K nodes
 				if (row.getId() % 200000 == 0)
 				{ 
 					percentprog = (row.getId() * 100) / (listsize);
@@ -119,6 +125,7 @@ public class WordCloudGen
 					tx.success();
 				}
 				
+				// Commit transactions after every 750K nodes
 				if (row.getId() % 750000 == 0)
 				{
 					tx.success();
@@ -154,6 +161,9 @@ public class WordCloudGen
 		Node results = hits.getSingle();
 
 		System.out.println(results.getProperty(property));
+
+		// TODO: Print all Relationships to results
+		
 	}
 }
 
