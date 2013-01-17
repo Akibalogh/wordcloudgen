@@ -3,9 +3,11 @@ package genanalytics;
 import java.io.PrintStream;
 import java.io.IOException;
 import java.io.Console;
+import java.util.HashMap;
+import java.util.Map;
 
-import java.text.DecimalFormat;
-
+//import org.neo4j.graphdb.DynamicRelationshipType;
+//import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
@@ -16,7 +18,11 @@ import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 
 import org.neo4j.kernel.EmbeddedGraphDatabase;
 
-import org.neo4j.server.WrappingNeoServerBootstrapper;
+import org.neo4j.unsafe.batchinsert.BatchInserter;
+import org.neo4j.unsafe.batchinsert.BatchInserters;
+import org.neo4j.unsafe.batchinsert.BatchInserterIndex;
+import org.neo4j.unsafe.batchinsert.BatchInserterIndexProvider;
+//import org.neo4j.server.WrappingNeoServerBootstrapper;
 
 
 public class WordCloudGen 
@@ -67,6 +73,7 @@ public class WordCloudGen
 		
 		registerShutdownHook();
 
+		// Get all nodes
 		Iterable<Node> result = w.getGraphDb().getAllNodes();
 
 		// Find out the size of the list
@@ -77,8 +84,19 @@ public class WordCloudGen
 
 		System.out.println("Loaded " + listsize + " entries");
 
-		Transaction tx = w.getGraphDb().beginTx();
 
+
+		// Load index
+		
+		/* WORK-IN-PROGRESS: Implement BatchInserter and BatchInserterIndex
+		Note: Batch insertion must be single-threaded! BatchIns has no transaction handling, locking and cache layers
+		config.put("neostore.nodestore.db.mapped_memory", "100M");		
+		BatchInserter inserter = BatchInserters.inserter(DB_PATH + "/batchinserter", config);
+		BatchInserterIndexProvider indexProvider = new LuceneBatchInserterIndexProvider(inserter);
+		Map<String, Object> properties = new HashMap<String, Object>();
+		*/ 
+
+		Transaction tx= w.getGraphDb().beginTx();
 		long percentprog = 0L;
 
 		try
@@ -89,17 +107,24 @@ public class WordCloudGen
 			System.out.println("Index set. Loading into index..");
 
 			// For each node in the graph, add it to the index
-			// TODO: Consider using Batch Index load
 			for (Node row : result)
 			{ 
 				if (row.hasProperty(property))
 				{ w.getIndex().add(row, property, row.getProperty(property)); }
 
-				if (row.getId() % 40000 == 0)
+				if (row.getId() % 200000 == 0)
 				{ 
 					percentprog = (row.getId() * 100) / (listsize);
 					System.out.println(row.getId() + " of " + listsize + " loaded | " + percentprog + "% loaded");
 					tx.success();
+				}
+				
+				if (row.getId() % 750000 == 0)
+				{
+					tx.success();
+					tx.finish();
+
+					tx = w.getGraphDb().beginTx();
 				}
 
 				// TODO: Probably need to add relationships as well
