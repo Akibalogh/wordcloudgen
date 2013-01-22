@@ -73,7 +73,6 @@ public class WordCloudGen
 		}
 		while (!input.isEmpty());
 
-		
 		System.out.println("Bye!");	
 		w.getGraphDb().shutdown(); // necessary w/ shutdown hook?
 	
@@ -116,7 +115,9 @@ public class WordCloudGen
 		*/ 
 
 		Transaction tx= w.getGraphDb().beginTx();
-		long percentprog = 0L;
+		long percentProg = 0L;
+		long heapUsed = 0L;
+		double heapUtil;
 
 		try
 		{
@@ -131,24 +132,31 @@ public class WordCloudGen
 				if (row.hasProperty(property))
 				{ w.getIndex().add(row, property, row.getProperty(property)); }
 
+				// Check heap utilization every 5K nodes
+				if (row.getId() % 5000 == 0)
+				{ 
+					heapUtil = 1 - ((double)Runtime.getRuntime().freeMemory() / (double)Runtime.getRuntime().totalMemory());
+
+					if (heapUtil > 0.90)
+					{ System.out.println("WARNING! High heap utilization at " + row.getId() + " | Utiliz: " + (int)(heapUtil * 100) + "% | Total: " + Runtime.getRuntime().totalMemory() + " | Free: " + Runtime.getRuntime().freeMemory()); }
+				}
+
 				// Show a progress update every 250K nodes
 				if (row.getId() % 250000 == 0)
 				{ 
-					percentprog = (row.getId() * 100) / (listsize);
-					System.out.println(row.getId() + " of " + listsize + " loaded | " + percentprog + "% loaded");
+					percentProg = (row.getId() * 100) / (listsize);
+					System.out.println(row.getId() + " of " + listsize + " loaded | " + percentProg + "% loaded");
 					tx.success();
 				}
 				
-				// Commit transactions after every 250K nodes
-				if (row.getId() % 250000 == 0)
+				// Commit transactions after every 100K nodes
+				if (row.getId() % 100000 == 0)
 				{
 					tx.success();
 					tx.finish();
 
 					tx = w.getGraphDb().beginTx();
 				}
-
-				// TODO: Probably need to add relationships as well
 			}
 		tx.success();
 		}
