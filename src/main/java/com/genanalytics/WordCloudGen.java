@@ -10,6 +10,7 @@ import java.util.Map;
 //import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.graphdb.index.IndexManager;
@@ -41,7 +42,7 @@ public class WordCloudGen
 	
 	public static void main( String[] args )
     	{ 
-		final String DB_PATH = "/usr/share/neo4j-community-1.8.1/data/articles-shortened.db";
+		final String DB_PATH = "/usr/share/neo4j-community-1.8.1/data/articles-categories.db";
 		final String PREFIX = "U http://dbpedia.org/resource/";
 		String property = "value";
 		String input = null;
@@ -52,13 +53,10 @@ public class WordCloudGen
 	
 		do
 		{
-			input = console.readLine("> ");
+			input = console.readLine("Enter a keyword > ");
 		
 			if (!input.isEmpty())
-			{
-				System.out.println("I read: '" + PREFIX + input + "'");	
-			 	checkIndex(w.getIndex(), property, PREFIX + input);
-			}	
+			{ checkIndex(w.getIndex(), property, PREFIX + input); }	
 		}
 		while (!input.isEmpty());
 		System.out.println("Bye!");	
@@ -117,16 +115,16 @@ public class WordCloudGen
 				if (row.hasProperty(property))
 				{ w.getIndex().add(row, property, row.getProperty(property)); }
 
-				// Show a progress update every 200K nodes
-				if (row.getId() % 200000 == 0)
+				// Show a progress update every 250K nodes
+				if (row.getId() % 250000 == 0)
 				{ 
 					percentprog = (row.getId() * 100) / (listsize);
 					System.out.println(row.getId() + " of " + listsize + " loaded | " + percentprog + "% loaded");
 					tx.success();
 				}
 				
-				// Commit transactions after every 750K nodes
-				if (row.getId() % 750000 == 0)
+				// Commit transactions after every 250K nodes
+				if (row.getId() % 250000 == 0)
 				{
 					tx.success();
 					tx.finish();
@@ -160,10 +158,13 @@ public class WordCloudGen
 		IndexHits<Node> hits = index.get(property, input);
 		Node results = hits.getSingle();
 
-		System.out.println(results.getProperty(property));
+		System.out.println("Relationships to " + results.getProperty(property));
 
 		// TODO: Print all Relationships to results
-		
+		Iterable<Relationship> result = results.getRelationships();
+
+		for (Relationship relationship : result)
+		{ System.out.println(relationship.getEndNode().getProperty(property)); }
 	}
 }
 
