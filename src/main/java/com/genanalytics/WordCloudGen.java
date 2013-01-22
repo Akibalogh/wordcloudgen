@@ -44,9 +44,9 @@ public class WordCloudGen
 	
 	public static void main( String[] args )
     	{ 
-		// final String DB_PATH = "/opt/neo4j/data/articles-categories.db";
-		final String DB_PATH = "/opt/neo4j/data/articles-shortened.db";
-		final String OUT_FILE_PATH = "/home/akibalogh/";
+		final String DB_PATH = "/opt/neo4j/data/articles-categories.db"; // Full dataset
+		// final String DB_PATH = "/opt/neo4j/data/articles-shortened.db"; // Sample dataset
+		final String OUT_FILE_PATH = "/usr/local/apache2/htdocs/";
 		final String PREFIX = "U http://dbpedia.org/resource/";
 		String keywords = "";
 		String property = "value";
