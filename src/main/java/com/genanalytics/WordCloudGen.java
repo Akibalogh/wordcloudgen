@@ -1,5 +1,7 @@
 package genanalytics;
 
+import java.io.FileWriter;
+import java.io.BufferedWriter;
 import java.io.PrintStream;
 import java.io.IOException;
 import java.io.Console;
@@ -42,27 +44,41 @@ public class WordCloudGen
 	
 	public static void main( String[] args )
     	{ 
-		final String DB_PATH = "/usr/share/neo4j-community-1.8.1/data/articles-categories.db";
+		// final String DB_PATH = "/opt/neo4j/data/articles-categories.db";
+		final String DB_PATH = "/opt/neo4j/data/articles-shortened.db";
+		final String OUT_FILE_PATH = "/home/akibalogh/";
 		final String PREFIX = "U http://dbpedia.org/resource/";
+		String keywords = "";
 		String property = "value";
 		String input = null;
 
 		WordCloudGen w = databaseSetup(DB_PATH, property);
 		// When the index is queried, return results
 		Console console = System.console();
-	
+
 		do
 		{
 			input = console.readLine("Enter a keyword > ");
 		
 			if (!input.isEmpty())
-			{ checkIndex(w.getIndex(), property, PREFIX + input); }	
+			{
+				keywords = checkIndex(w.getIndex(), property, PREFIX, input);
+				
+				if (keywords.length() > 0)
+				{
+					System.out.println("Writing to " + OUT_FILE_PATH + input + ".php");
+					writeCurlOutput(keywords, OUT_FILE_PATH, input + ".php");
+				}
+			}	
 		}
 		while (!input.isEmpty());
+
+		
 		System.out.println("Bye!");	
+		w.getGraphDb().shutdown(); // necessary w/ shutdown hook?
 	
-		//catch(IOException error)
-		//{ error.printStackTrace(); }
+		// catch (Exception error)
+		// { System.err.println("Error: " + e.getMessage()); }
 
 	}
 
@@ -153,18 +169,79 @@ public class WordCloudGen
 		} );
 	}
 
-	public static void checkIndex (Index<Node> index, String property, String input)
+	public static String checkIndex (Index<Node> index, String property, String PREFIX, String input)
 	{
-		IndexHits<Node> hits = index.get(property, input);
-		Node results = hits.getSingle();
+		String relationshipValue;
+		String relationshipArray = "";
+		Iterable<Relationship> result = null;
+		int prefixLen = PREFIX.length();
+		
+		try
+		{
+			IndexHits<Node> hits = index.get(property, PREFIX + input);
+			Node results = hits.getSingle();
+	
+			result = results.getRelationships();
 
-		System.out.println("Relationships to " + results.getProperty(property));
+			for (Relationship relationship : result)
+			{ 
+				// TODO: Distinguish between Articles and Categories
+				
+				relationshipValue = (String)relationship.getEndNode().getProperty(property); 
+		
+				// If we've found a category, remove the Category designation
+				if (relationshipValue.contains("Category:"))
+				{ relationshipValue = relationshipValue.substring(prefixLen + "Category:".length()); }
 
-		// TODO: Print all Relationships to results
-		Iterable<Relationship> result = results.getRelationships();
+				// Replace all _ with spaces
+				if (relationshipValue.contains("_"))
+				{ relationshipValue = relationshipValue.replace("_", " "); }
 
-		for (Relationship relationship : result)
-		{ System.out.println(relationship.getEndNode().getProperty(property)); }
+				// relationshipValue = relationshipValue.substring(prefixLen);
+				System.out.println("Relationship found: " + relationshipValue);
+				relationshipArray += "\"" + relationshipValue + "\",";
+			}
+			
+			// Remove last comma from array
+			relationshipArray = relationshipArray.substring(0, relationshipArray.length() - 1); 
+		}
+		catch (NullPointerException e)
+		{ System.err.println(input + " not found!"); }
+		
+		return relationshipArray;
+	}
+
+	public static void writeCurlOutput (String keywords, String outPath, String outFileName)
+	{
+		try 
+		{
+			FileWriter fstream = new FileWriter(outPath + outFileName);
+			BufferedWriter fout = new BufferedWriter(fstream);
+
+			fout.write("<?php\n");
+		
+			fout.write("$data = array('keyword' => " + keywords);	
+			fout.write(");\n");
+
+			fout.write("$ch = curl_init();\n");
+			fout.write("curl_setopt($ch, CURLOPT_SLL_VERIFYHOST, 0);\n");
+			fout.write("curl_setopt($ch, CURLOPT_SSL_VERFIYPEER, false);\n");
+			fout.write("curl_setopt($ch, CURLOPT_URL, 'http://aafter.org/news_search/index1.php?uid=123456&afid=abcdef');\n");
+			fout.write("curl_setopt($ch, CURLOPT_POST, 1);\n");
+			fout.write("curl_setopt($ch, CURLOPT_POSTFIELDS, $data);\n");
+			fout.write("ob_start();\n");
+			fout.write("curl_exec($ch);\n");
+			fout.write("curl_close($ch);\n");
+			fout.write("$str_xml = ob_get_contents();\n");
+			fout.write("ob_end_clean();\n"); 
+			fout.write("print $str_xml;\n");
+			fout.write("?>");
+
+			fout.close();
+		}
+		catch (Exception e)
+		{ System.err.println("Error: " + e.getMessage()); }
+
 	}
 }
 
