@@ -8,8 +8,6 @@ import java.io.Console;
 import java.util.HashMap;
 import java.util.Map;
 
-//import org.neo4j.graphdb.DynamicRelationshipType;
-//import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
@@ -39,14 +37,12 @@ public class WordCloudGen
 	public void setGraphDb(GraphDatabaseService graphDb) { this.graphDb = graphDb; }
 	public void setIndex(Index<Node> index) { this.index = index; }
 
-	// public Node returnNode(Long id) { return getGraphDb().getNodeById(id); }
-	// public void setNode(Node node, String key, Object property) { node.setProperty(key, property); }
-	
 	public static void main( String[] args )
     	{ 
 		final String DB_PATH = "/opt/neo4j/data/articles-categories.db"; // Full dataset
 		// final String DB_PATH = "/opt/neo4j/data/articles-shortened.db"; // Sample dataset
-		final String OUT_FILE_PATH = "/usr/local/apache2/htdocs/";
+		
+		final String OUT_FILE_PATH = "/var/www/html/";
 		final String PREFIX = "U http://dbpedia.org/resource/";
 		String keywords = "";
 		String property = "value";
@@ -75,7 +71,7 @@ public class WordCloudGen
 
 		
 		System.out.println("Bye!");	
-		w.getGraphDb().shutdown(); // necessary w/ shutdown hook?
+		w.getGraphDb().shutdown(); // TODO: May not be necessary since there is a shutdown hook
 	
 		// catch (Exception error)
 		// { System.err.println("Error: " + e.getMessage()); }
@@ -104,10 +100,11 @@ public class WordCloudGen
 		System.out.println("Loaded " + listsize + " entries");
 
 
+		// Load new index
 
-		// Load index
+		// TODO: Check for existing index
 		
-		/* WORK-IN-PROGRESS: Implement BatchInserter and BatchInserterIndex
+		/* TODO: Implement BatchInserter and BatchInserterIndex
 		Note: Batch insertion must be single-threaded! BatchIns has no transaction handling, locking and cache layers
 		config.put("neostore.nodestore.db.mapped_memory", "100M");		
 		BatchInserter inserter = BatchInserters.inserter(DB_PATH + "/batchinserter", config);
@@ -147,8 +144,6 @@ public class WordCloudGen
 
 					tx = w.getGraphDb().beginTx();
 				}
-
-				// TODO: Probably need to add relationships as well
 			}
 		tx.success();
 		}
@@ -173,35 +168,42 @@ public class WordCloudGen
 	{
 		String relationshipValue;
 		String relationshipArray = "";
-		Iterable<Relationship> result = null;
-		int prefixLen = PREFIX.length();
-		
+	
+		// TODO: Implement more robust inputs for Subhankar's API v2
+
+		// System.out.println("Assuming 15 results per keyword.");
+		// System.out.println("Assuming seed URL is http://en.wikipedia.com/wiki/<keyword>");
+	
 		try
 		{
-			IndexHits<Node> hits = index.get(property, PREFIX + input);
-			Node results = hits.getSingle();
-	
-			result = results.getRelationships();
+			IndexHits<Node> term = index.get(property, PREFIX + input);
+			Node termResults = term.getSingle();
+			Iterable<Relationship> termResult = termResults.getRelationships();
 
-			for (Relationship relationship : result)
+			for (Relationship relationship : termResult)
 			{ 
-				// TODO: Distinguish between Articles and Categories
-				
 				relationshipValue = (String)relationship.getEndNode().getProperty(property); 
-		
-				// If we've found a category, remove the Category designation
-				if (relationshipValue.contains("Category:"))
-				{ relationshipValue = relationshipValue.substring(prefixLen + "Category:".length()); }
-
-				// Replace all _ with spaces
-				if (relationshipValue.contains("_"))
-				{ relationshipValue = relationshipValue.replace("_", " "); }
-
-				// relationshipValue = relationshipValue.substring(prefixLen);
+				
 				System.out.println("Relationship found: " + relationshipValue);
+				relationshipValue = cleanRelationship(relationshipValue, PREFIX.length());
+
 				relationshipArray += "\"" + relationshipValue + "\",";
 			}
 			
+			IndexHits<Node> category = index.get(property, PREFIX + "Category:" + input);
+			Node categoryResults = category.getSingle();
+			Iterable<Relationship> categoryResult = categoryResults.getRelationships();
+		
+			for (Relationship relationship : categoryResult)
+			{ 
+				relationshipValue = (String)relationship.getStartNode().getProperty(property); 
+				
+				System.out.println("Relationship found: " + relationshipValue);
+				relationshipValue = cleanRelationship(relationshipValue, PREFIX.length());
+
+				relationshipArray += "\"" + relationshipValue + "\",";
+			}
+	
 			// Remove last comma from array
 			relationshipArray = relationshipArray.substring(0, relationshipArray.length() - 1); 
 		}
@@ -218,6 +220,8 @@ public class WordCloudGen
 			FileWriter fstream = new FileWriter(outPath + outFileName);
 			BufferedWriter fout = new BufferedWriter(fstream);
 
+
+			// Subhankar's API v1
 			fout.write("<?php\n");
 		
 			fout.write("$data = array('keyword' => " + keywords);	
@@ -242,6 +246,19 @@ public class WordCloudGen
 		catch (Exception e)
 		{ System.err.println("Error: " + e.getMessage()); }
 
+	}
+
+	public static String cleanRelationship (String relationshipValue, int prefixLen)
+	{
+		// If relationship is a category, remove the prefix and Category: designation
+		if (relationshipValue.contains("Category:"))
+		{ relationshipValue = relationshipValue.substring(prefixLen + "Category:".length()); }
+
+		// Replace all _ with spaces
+		if (relationshipValue.contains("_"))
+		{ relationshipValue = relationshipValue.replace("_", " "); }
+
+		return relationshipValue;
 	}
 }
 
