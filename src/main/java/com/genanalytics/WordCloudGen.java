@@ -40,7 +40,7 @@ public class WordCloudGen
 	public static void main( String[] args )
     	{ 
 		final String DB_PATH = "/opt/neo4j/data/articles-categories.db"; // Full dataset
-		// final String DB_PATH = "/opt/neo4j/data/articles-shortened.db"; // Sample dataset
+		// final String DB_PATH = "/opt/neo4j/data/articles-shortened.db"; // Sample dataset for Development and Test
 		
 		final String OUT_FILE_PATH = "/var/www/html/";
 		final String PREFIX = "U http://dbpedia.org/resource/";
@@ -54,7 +54,7 @@ public class WordCloudGen
 
 		do
 		{
-			input = console.readLine("Enter a keyword > ");
+			input = console.readLine("Enter a keyword or press ENTER to exit > ");
 		
 			if (!input.isEmpty())
 			{
@@ -70,11 +70,6 @@ public class WordCloudGen
 		while (!input.isEmpty());
 
 		System.out.println("Bye!");	
-		w.getGraphDb().shutdown(); // TODO: May not be necessary since there is a shutdown hook
-	
-		// catch (Exception error)
-		// { System.err.println("Error: " + e.getMessage()); }
-
 	}
 
 
@@ -87,7 +82,8 @@ public class WordCloudGen
 		
 		registerShutdownHook();
 
-		// Get all nodes
+		// Load all nodes
+		System.out.println("Loading Nodes into memory..");
 		Iterable<Node> result = w.getGraphDb().getAllNodes();
 
 		// Find out the size of the list
@@ -96,72 +92,82 @@ public class WordCloudGen
 		for (Node row : result)
 		{ listsize++; }
 
-		System.out.println("Loaded " + listsize + " entries");
-
-
-		// Load new index
-
-		// TODO: Check for existing index
-		
-		/* TODO: Implement BatchInserter and BatchInserterIndex
-		Note: Batch insertion must be single-threaded! BatchIns has no transaction handling, locking and cache layers
-		config.put("neostore.nodestore.db.mapped_memory", "100M");		
-		BatchInserter inserter = BatchInserters.inserter(DB_PATH + "/batchinserter", config);
-		BatchInserterIndexProvider indexProvider = new LuceneBatchInserterIndexProvider(inserter);
-		Map<String, Object> properties = new HashMap<String, Object>();
-		*/ 
-
-		Transaction tx= w.getGraphDb().beginTx();
-		long percentProg = 0L;
-		long heapUsed = 0L;
-		double heapUtil;
-
-		try
+		System.out.println("Loaded " + listsize + " Nodes");
+	
+		// Check for existing index
+		if (w.getGraphDb().index().existsForNodes(property))
 		{
-			IndexManager indexManager = w.getGraphDb().index();
-			w.setIndex(indexManager.forNodes(property));
-
-			System.out.println("Index set. Loading into index..");
-
-			// For each node in the graph, add it to the index
-			for (Node row : result)
-			{ 
-				if (row.hasProperty(property))
-				{ w.getIndex().add(row, property, row.getProperty(property)); }
-
-				// Check heap utilization every 5K nodes
-				if (row.getId() % 5000 == 0)
-				{ 
-					heapUtil = 1 - ((double)Runtime.getRuntime().freeMemory() / (double)Runtime.getRuntime().totalMemory());
-
-					if (heapUtil > 0.90)
-					{ System.out.println("WARNING! High heap utilization at " + row.getId() + " | Utiliz: " + (int)(heapUtil * 100) + "% | Total: " + Runtime.getRuntime().totalMemory() + " | Free: " + Runtime.getRuntime().freeMemory()); }
-				}
-
-				// Show a progress update every 250K nodes
-				if (row.getId() % 250000 == 0)
-				{ 
-					percentProg = (row.getId() * 100) / (listsize);
-					System.out.println(row.getId() + " of " + listsize + " loaded | " + percentProg + "% loaded");
-					tx.success();
-				}
-				
-				// Commit transactions after every 100K nodes
-				if (row.getId() % 100000 == 0)
-				{
-					tx.success();
-					tx.finish();
-
-					tx = w.getGraphDb().beginTx();
-				}
-			}
-		tx.success();
+			// Index already exists
+			System.out.println("Index already exists. No need to load");
+			w.setIndex(w.getGraphDb().index().forNodes(property));
+			return w;
 		}
-		finally
-		{ tx.finish(); }
+		else
+		{
+			// Index has to be created	
+			IndexManager indexManager = w.getGraphDb().index();
+	
+			/* TODO: Implement BatchInserter and BatchInserterIndex
+			Note: Batch insertion must be single-threaded! BatchIns has no transaction handling, locking and cache layers
+			config.put("neostore.nodestore.db.mapped_memory", "100M");		
+			BatchInserter inserter = BatchInserters.inserter(DB_PATH + "/batchinserter", config);
+			BatchInserterIndexProvider indexProvider = new LuceneBatchInserterIndexProvider(inserter);
+			Map<String, Object> properties = new HashMap<String, Object>();
+			*/ 
 
-		System.out.println("Index loaded");
-		return w;
+			Transaction tx= w.getGraphDb().beginTx();
+			long percentProg = 0L;
+			long heapUsed = 0L;
+			double heapUtil;
+
+			try
+			{
+				w.setIndex(indexManager.forNodes(property));
+
+				System.out.println("Index does not exist. Loading into index..");
+
+				// For each node in the graph, add it to the index
+				for (Node row : result)
+				{ 
+					if (row.hasProperty(property))
+					{ w.getIndex().add(row, property, row.getProperty(property)); }
+
+					// Check heap utilization every 5K nodes
+					if (row.getId() % 5000 == 0)
+					{ 
+						heapUtil = 1 - ((double)Runtime.getRuntime().freeMemory() / (double)Runtime.getRuntime().totalMemory());
+
+						if (heapUtil > 0.90)
+						{ System.out.println("WARNING! High heap utilization at " + row.getId() + " | Utiliz: " + (int)(heapUtil * 100) + "% | Total: " + Runtime.getRuntime().totalMemory() + " | Free: " + Runtime.getRuntime().freeMemory()); }
+					}
+
+					// Show a progress update every 250K nodes
+					if (row.getId() % 250000 == 0)
+					{ 
+						percentProg = (row.getId() * 100) / (listsize);
+						System.out.println(row.getId() + " of " + listsize + " loaded | " + percentProg + "% loaded");
+						tx.success();
+					}
+				
+					// Commit transactions after every 100K nodes
+					if (row.getId() % 100000 == 0)
+					{
+						tx.success();
+						tx.finish();
+
+						tx = w.getGraphDb().beginTx();
+					}
+				}
+		
+				tx.success();
+			}
+			
+			finally
+			{ tx.finish(); }
+
+			System.out.println("Index loaded");
+			return w;
+		}
 	}
 
 	private static void registerShutdownHook()
