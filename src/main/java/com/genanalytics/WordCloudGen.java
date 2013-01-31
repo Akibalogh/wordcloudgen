@@ -186,6 +186,7 @@ public class WordCloudGen
 	
 		try
 		{
+			// First, search for Term in index
 			IndexHits<Node> term = index.get(property, PREFIX + input);
 			Node termResults = term.getSingle();
 			Iterable<Relationship> termResult = termResults.getRelationships();
@@ -199,7 +200,8 @@ public class WordCloudGen
 
 				relationshipArray += "\"" + relationshipValue + "\",";
 			}
-			
+
+			// Next, search for Category:Term and pull any additional values in
 			IndexHits<Node> category = index.get(property, PREFIX + "Category:" + input);
 			Node categoryResults = category.getSingle();
 			Iterable<Relationship> categoryResult = categoryResults.getRelationships();
