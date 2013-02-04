@@ -201,8 +201,8 @@ public class WordCloudGen
 			{ 
 				relationshipValue = (String)relationship.getEndNode().getProperty(property); 
 				
-				System.out.println("Relationship found: " + relationshipValue);
 				relationshipValue = cleanRelationship(relationshipValue, PREFIX.length());
+				System.out.println("Relationship found: " + relationshipValue);
 
 				relationshipArray += "\"" + relationshipValue + "\",";
 			}
@@ -216,8 +216,8 @@ public class WordCloudGen
 			{ 
 				relationshipValue = (String)relationship.getStartNode().getProperty(property); 
 				
-				System.out.println("Relationship found: " + relationshipValue);
 				relationshipValue = cleanRelationship(relationshipValue, PREFIX.length());
+				System.out.println("Relationship found: " + relationshipValue);
 
 				relationshipArray += "\"" + relationshipValue + "\",";
 			}
@@ -268,9 +268,11 @@ public class WordCloudGen
 
 	public static String cleanRelationship (String relationshipValue, int prefixLen)
 	{
-		// If relationship is a category, remove the prefix and Category: designation
+		// Remove the prefix and Category designation, if exists
 		if (relationshipValue.contains("Category:"))
 		{ relationshipValue = relationshipValue.substring(prefixLen + "Category:".length()); }
+		else
+		{ relationshipValue = relationshipValue.substring(prefixLen); }
 
 		// Replace all _ with spaces
 		if (relationshipValue.contains("_"))
